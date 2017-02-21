@@ -1,5 +1,6 @@
 var app = require('express')();
 var fs = require('fs');
+var os = require('os');
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
 var producerSocket;
@@ -7,6 +8,7 @@ var consumerIds = [];
 var consumerSockets = [];
 var consumerNo = 0;
 var port = (process.argv.length == 3)?process.argv[2]:3001;
+const recordingDir = 'recordings/';
 
 app.get('/', function(req, res){
   res.send('Use your local index.html');
@@ -77,7 +79,21 @@ function setConsumerMessageHandlers(socket){
     console.log('received ICE from '+consumerIds[socket.id]+': '+msg);
     if (producerSocket)
       producerSocket.emit('ice', {from: consumerIds[socket.id], data: msg});
-  });  
+  });
+
+  socket.on('reclist', function(url) {
+    console.log('sending list of recordings');
+
+    var recordingList = [];
+
+    fs.readdir(recordingDir, (err, files) => {
+      files.forEach(file => {
+        recordingList.push(os.hostname() + '/' + recordingDir + file);
+      });
+    })
+
+    producerSocket.emit('reclist', recordingList);
+  });
 
   socket.on('disconnect', function(){
     consumerId = consumerIds[this.id];
